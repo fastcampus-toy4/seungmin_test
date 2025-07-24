@@ -61,12 +61,11 @@ class MainMenuSelector:
             # verbose=True  # LLMChain의 verbose는 작동합니다
         )
 
-    def menuSelect(self, menu: List[str]) -> Dict[str, List[str]]:
+    def menuSelect(self, menu: List[str]) -> List[str]:
         # 리스트를 문자열로 변환
         menu_str = ", ".join(menu)
         print(f"전송되는 메뉴: {menu_str}")  # 디버깅용
         
-        # 올바른 타입으로 수정
-        result: Dict[str, List[str]] = self.chain.run(menu=menu_str)
+        result = self.chain.run(menu=menu_str)
         print(f"LLM 응답: {result}")  # 디버깅용
-        return result
+        return result.get("menu", [])

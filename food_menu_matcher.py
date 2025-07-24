@@ -18,7 +18,7 @@ class FoodMenuMatcher:
         self.model = SentenceTransformer(model_name)
         print("모델 로딩 완료!")
 
-    def calculate_similarity_matrix(self, food_names: List[str], menu_names: List[str]) -> np.ndarray:
+    def calculate_similarity_matrix(self, food_names: List[str], menu_name_list: List[str]) -> np.ndarray:
         """
         음식 이름과 메뉴 이름 간의 유사도 매트릭스 계산
 
@@ -33,7 +33,7 @@ class FoodMenuMatcher:
 
         # 임베딩 생성
         food_embeddings = self.model.encode(food_names, show_progress_bar=True)
-        menu_embeddings = self.model.encode(menu_names, show_progress_bar=True)
+        menu_embeddings = self.model.encode(menu_name_list, show_progress_bar=True)
 
         # 코사인 유사도 계산
         similarity_matrix = cosine_similarity(food_embeddings, menu_embeddings)
@@ -43,7 +43,7 @@ class FoodMenuMatcher:
 
     def find_matches(self,
                     food_names: List[str],
-                    menu_names: List[str],
+                    menu_name_list: List[str],
                     threshold: float = 0.7,
                     top_k: int = 100) -> List[Dict]:
         """
@@ -51,14 +51,16 @@ class FoodMenuMatcher:
 
         Args:
             food_names: 음식 이름 리스트
-            menu_names: 메뉴 이름 리스트
+            menu_names: 메뉴 리스트
             threshold: 유사도 임계값 (0.0 ~ 1.0)
             top_k: 각 음식당 반환할 최대 메뉴 개수
 
         Returns:
             matches: 매칭 결과 리스트
         """
-        similarity_matrix = self.calculate_similarity_matrix(food_names, menu_names)
+        
+        # 유사도 매트릭스 계산
+        similarity_matrix = self.calculate_similarity_matrix(food_names, menu_name_list)
 
         matches = []
 
@@ -79,7 +81,7 @@ class FoodMenuMatcher:
                 for j in top_indices:
                     matches.append({
                         'food_name': food_name,
-                        'menu_name': menu_names[j],
+                        'menu_name': menu_name_list[j],
                         'similarity_score': float(food_similarities[j]),
                         'food_index': i,
                         'menu_index': j
@@ -91,10 +93,10 @@ class FoodMenuMatcher:
         return matches
 
     def get_recommendable_menus(self,
-                               food_names: List[str],
-                               menu_names: List[str],
+                               food_name_list: List[str],
+                               menu_name_list: List[str],
                                threshold: float = 0.7,
-                               top_k: int = 10) -> Dict:
+                               top_k: int = 100) -> Dict:
         """
         추천 가능한 메뉴 목록 반환 (LLM 입력용)
 
@@ -105,10 +107,10 @@ class FoodMenuMatcher:
                 'menu': 후보 메뉴 리스트
             }
         """
-        matches = self.find_matches(food_names, menu_names, threshold, top_k)
+        matches = self.find_matches(food_name_list, menu_name_list, threshold, top_k)
 
-        # 중복 제거된 메뉴 목록
-        unique_menus = list(set([match['menu_name'] for match in matches]))
+        # 고유한 메뉴 이름만 추출
+        unique_menu_name_list = list({match['menu_name'] for match in matches})
 
         # 음식별 매칭 요약
         food_summary = {}
@@ -117,16 +119,16 @@ class FoodMenuMatcher:
             if food not in food_summary:
                 food_summary[food] = []
             food_summary[food].append({
-                'menu': match['menu_name'],
+                'menu': match['menu'],
                 'score': match['similarity_score']
             })
 
         result = {
             'matches': matches,
             'food_summary': food_summary,
-            'menu': unique_menus,
+            'menu': unique_menu_name_list,
             'total_matches': len(matches),
-            'unique_menus': len(unique_menus)
+            'unique_menus': len(unique_menu_name_list)
         }
 
         return result
